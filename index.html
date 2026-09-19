@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exp</title>
+<style>
+  :root{
+    --bg:#12141a; --surface:#1c1f28; --border:#333849;
+    --text:#eef0f4; --text-dim:#9aa1b2;
+    --accent:#d99a2b; --accent-dark:#a9721a; --accent-ink:#1a1200;
+  }
+  *{ box-sizing:border-box; }
+  html{ font-size:18px; }
+  body{
+    margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    padding-inline:16px; padding-block:40px;
+  }
+  .card{
+    max-width:420px; width:100%; text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:22px;
+  }
+  h1{ margin:0; font-size:1.6rem; font-weight:700; letter-spacing:-0.01em; }
+  p{ margin:0; font-size:0.95rem; color:var(--text-dim); line-height:1.5; }
+  button{
+    appearance:none; border:none; border-radius:999px;
+    width:150px; height:150px; font-size:1.15rem; font-weight:700;
+    background:radial-gradient(circle at 35% 30%, var(--accent), var(--accent-dark));
+    color:var(--accent-ink); cursor:pointer;
+    box-shadow:0 10px 30px -8px rgba(217,154,43,0.55), inset 0 2px 0 rgba(255,255,255,0.25);
+    transition:transform 0.08s ease;
+  }
+  button:active{ transform:scale(0.94); }
+  button:focus-visible{ outline:3px solid var(--accent); outline-offset:4px; }
+  .note{ font-size:0.8rem; color:var(--text-dim); max-width:32ch; line-height:1.5; }
+  @media (prefers-reduced-motion:reduce){ button{ transition:none; } }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Exp</h1>
+  <p>Press the button for a ~3 second fanfare.</p>
+  <button id="playBtn" type="button">▶ Play</button>
+  <p class="note">Synthesized tones approximating the famous adventure-movie fanfare's opening rhythm — generated in-browser, not a recording of the original.</p>
+</div>
+
+<script>
+(function(){
+  var btn = document.getElementById('playBtn');
+  var audioCtx = null;
+
+  // Eb major scale note frequencies (Hz)
+  var Eb4 = 311.13, F4 = 349.23, G4 = 392.00, Ab4 = 415.30,
+      Bb4 = 466.16, C5 = 523.25, D5 = 587.33, Eb5 = 622.25;
+
+  // Rhythm/contour approximating the iconic opening fanfare: short-short-long,
+  // then a rising run into a held note. Not a precise transcription.
+  var SEQUENCE = [
+    { f: Eb4, d: 0.15 },
+    { f: F4,  d: 0.15 },
+    { f: G4,  d: 0.5  },
+    { f: 0,   d: 0.12 }, // rest
+    { f: G4,  d: 0.15 },
+    { f: Ab4, d: 0.15 },
+    { f: Bb4, d: 0.15 },
+    { f: C5,  d: 0.15 },
+    { f: D5,  d: 0.15 },
+    { f: Eb5, d: 1.0  }
+  ];
+
+  function getCtx(){
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playNote(ctx, freq, startTime, duration){
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    var attack = 0.02;
+    var release = Math.min(0.08, duration * 0.3);
+    var peak = 0.28;
+
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(peak, startTime + attack);
+    gain.gain.setValueAtTime(peak, Math.max(startTime + attack, startTime + duration - release));
+    gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.02);
+  }
+
+  function playFanfare(){
+    var ctx = getCtx();
+    var t = ctx.currentTime + 0.05;
+    SEQUENCE.forEach(function(note){
+      if (note.f > 0) playNote(ctx, note.f, t, note.d * 0.88);
+      t += note.d;
+    });
+  }
+
+  btn.addEventListener('click', playFanfare);
+})();
+</script>
+</body>
+</html>
