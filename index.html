@@ -44,12 +44,14 @@
   <h1>Exp</h1>
   <p>Press the button for a ~3 second fanfare.</p>
   <button id="playBtn" type="button">▶ Play</button>
+  <p class="note" id="statusEl">Tap play to start.</p>
   <p class="note">Synthesized tones approximating the famous adventure-movie fanfare's opening rhythm — generated in-browser, not a recording of the original.</p>
 </div>
 
 <script>
 (function(){
   var btn = document.getElementById('playBtn');
+  var statusEl = document.getElementById('statusEl');
   var audioCtx = null;
 
   // Eb major scale note frequencies (Hz)
@@ -73,7 +75,6 @@
 
   function getCtx(){
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
     return audioCtx;
   }
 
@@ -98,13 +99,33 @@
     osc.stop(startTime + duration + 0.02);
   }
 
-  function playFanfare(){
-    var ctx = getCtx();
+  function scheduleSequence(ctx){
     var t = ctx.currentTime + 0.05;
     SEQUENCE.forEach(function(note){
       if (note.f > 0) playNote(ctx, note.f, t, note.d * 0.88);
       t += note.d;
     });
+  }
+
+  function playFanfare(){
+    var ctx;
+    try {
+      ctx = getCtx();
+    } catch (err){
+      statusEl.textContent = 'Web Audio not supported: ' + (err && err.message ? err.message : err);
+      return;
+    }
+    statusEl.textContent = 'Audio state: ' + ctx.state;
+    if (ctx.state === 'suspended'){
+      ctx.resume().then(function(){
+        statusEl.textContent = 'Audio state: ' + ctx.state;
+        scheduleSequence(ctx);
+      }).catch(function(err){
+        statusEl.textContent = 'Could not start audio: ' + (err && err.message ? err.message : err);
+      });
+    } else {
+      scheduleSequence(ctx);
+    }
   }
 
   btn.addEventListener('click', playFanfare);
